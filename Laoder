@@ -1,0 +1,106 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- Function to check if necessary parts/events exist
+local function checkGameElements()
+    -- Check for ReplicatedStorage.Events.CreateParty
+    local createParty = ReplicatedStorage:FindFirstChild("Events")
+        and ReplicatedStorage.Events:FindFirstChild("CreateParty")
+
+    -- Check for PartyPlace1 - PartyPlace4 with Blocker
+    local allPlacesExist = true
+    for i = 1, 4 do
+        local place = Workspace:FindFirstChild("PartyPlace" .. i)
+        if not (place and place:FindFirstChild("Blocker")) then
+            allPlacesExist = false
+            break
+        end
+    end
+
+    return createParty and allPlacesExist
+end
+
+if checkGameElements() then
+    -- ✅ Elements found, run the first script
+
+    local humanoid = character:WaitForChild("Humanoid")
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+
+    -- CONSTANT Noclip
+    RunService.Stepped:Connect(function()
+        if humanoid and humanoid.Health > 0 then
+            humanoid:ChangeState(11)
+        end
+
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+
+    -- Walk to a part
+    local function walkTo(part)
+        if not (character and humanoid and rootPart and part) then return end
+
+        humanoid:MoveTo(part.Position)
+
+        local finished = false
+        local connection
+        connection = humanoid.MoveToFinished:Connect(function()
+            finished = true
+        end)
+
+        local startTime = tick()
+        while not finished and tick() - startTime < 5 do
+            task.wait(0.1)
+        end
+
+        if connection then
+            connection:Disconnect()
+        end
+    end
+
+    -- Fire the CreateParty event
+    local function fireCreateParty()
+        local args = {1}
+        ReplicatedStorage.Events.CreateParty:FireServer(unpack(args))
+    end
+
+    -- Main walking loop
+    local placeIndex = 1
+    local direction = 1
+
+    while true do
+        fireCreateParty()
+
+        local partyPlace = Workspace:FindFirstChild("PartyPlace" .. tostring(placeIndex))
+        if partyPlace and partyPlace:FindFirstChild("Blocker") then
+            local blockerChildren = partyPlace.Blocker:GetChildren()
+            local targetPart = blockerChildren[4]
+            if targetPart and targetPart:IsA("BasePart") then
+                walkTo(targetPart)
+            end
+        end
+
+        task.wait(2 + math.random())
+
+        if placeIndex >= 4 then
+            direction = -1
+        elseif placeIndex <= 1 then
+            direction = 1
+        end
+
+        placeIndex = placeIndex + direction
+    end
+
+else
+    -- ❌ Elements missing, fallback to loadstring script
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/OtakuDreamer98/Deadly-Heist-/refs/heads/main/Auto-Wins"))()
+end
