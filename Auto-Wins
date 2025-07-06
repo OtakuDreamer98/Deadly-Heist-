@@ -30,15 +30,26 @@ title.Font = Enum.Font.ArialBold
 title.BackgroundTransparency = 1
 title.Parent = screenGui
 
-local timerLabel = Instance.new("TextLabel")
-timerLabel.Size = UDim2.new(1, 0, 0.1, 0)
-timerLabel.Position = UDim2.new(0, 0, 0.6, 0)
-timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-timerLabel.TextStrokeTransparency = 0
-timerLabel.TextScaled = true
-timerLabel.Font = Enum.Font.ArialBold
-timerLabel.BackgroundTransparency = 1
-timerLabel.Parent = screenGui
+local seatedStatus = Instance.new("TextLabel")
+seatedStatus.Size = UDim2.new(1, 0, 0.1, 0)
+seatedStatus.Position = UDim2.new(0, 0, 0.5, 0)
+seatedStatus.TextColor3 = Color3.fromRGB(255, 255, 255)
+seatedStatus.TextStrokeTransparency = 0
+seatedStatus.TextScaled = true
+seatedStatus.Font = Enum.Font.ArialBold
+seatedStatus.BackgroundTransparency = 1
+seatedStatus.Parent = screenGui
+
+local timeDisplay = Instance.new("TextLabel")
+timeDisplay.Size = UDim2.new(1, 0, 0.1, 0)
+timeDisplay.Position = UDim2.new(0, 0, 0.6, 0)
+timeDisplay.Text = "Waiting to start..." -- Initial text
+timeDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
+timeDisplay.TextStrokeTransparency = 0
+timeDisplay.TextScaled = true
+timeDisplay.Font = Enum.Font.ArialBold
+timeDisplay.BackgroundTransparency = 1
+timeDisplay.Parent = screenGui
 
 local lobbyMessage = Instance.new("TextLabel")
 lobbyMessage.Size = UDim2.new(1, 0, 0.1, 0)
@@ -51,18 +62,16 @@ lobbyMessage.Font = Enum.Font.ArialBold
 lobbyMessage.BackgroundTransparency = 1
 lobbyMessage.Parent = screenGui
 
--- === TIMER LOGIC ===
-local totalTime = 120 -- 120 seconds
+-- === SEATED STATUS UPDATE ===
 spawn(function()
-    while totalTime > 0 do
-        local minutes = math.floor(totalTime / 60)
-        local seconds = totalTime % 60
-        timerLabel.Text = string.format("Time Remaining: %02d:%02d", minutes, seconds)
-        wait(1)
-        totalTime = totalTime - 1
+    while seatedStatus.Visible do
+        if humanoid then
+            seatedStatus.Text = "Seated: " .. tostring(humanoid.Sit)
+        else
+            seatedStatus.Text = "Seated: false"
+        end
+        wait(0.1) -- Update every 0.1 seconds
     end
-    timerLabel.Text = "Finished!"
-    lobbyMessage.Text = "Teleporting you back to the Lobby...\n(Note: This may take a while)"
 end)
 
 -- === TELEPORT FUNCTIONS ===
@@ -94,6 +103,21 @@ local function createPlatform(centerPosition)
     platform.Parent = platformFolder
 end
 
+-- === TIMER AND TELEPORTATION LOGIC ===
+local function startHeist()
+    -- Start timer
+    local totalTime = 120 -- 120 seconds
+    while totalTime > 0 do
+        local minutes = math.floor(totalTime / 60)
+        local seconds = totalTime % 60
+        timeDisplay.Text = string.format("Time Remaining: %02d:%02d", minutes, seconds)
+        wait(1)
+        totalTime = totalTime - 1
+    end
+    timeDisplay.Text = "Finished!"
+    lobbyMessage.Text = "Teleporting you back to the Lobby...\n(Note: This may take a while)"
+end
+
 -- === STEP 1: ENSURE PLAYER IS SEATED ===
 local driverSeat = workspace:WaitForChild("Vehicle"):WaitForChild("Seats"):WaitForChild("DriverSeat")
 
@@ -101,40 +125,44 @@ local function waitForSeated()
     while humanoid and humanoid.Sit ~= true do
         teleportToPart(driverSeat)
         wait(0.5) -- Wait between attempts
-        -- Re-check humanoid in case character respawns
+        -- Re-check humanoid and rootPart in case character respawns
         humanoid = character:WaitForChild("Humanoid", 5)
         rootPart = character:WaitForChild("HumanoidRootPart", 5)
     end
     print("Player is seated in driver seat.")
+    -- Start the heist (timer and teleportations) once seated
+    spawn(startHeist)
+
+    -- === STEP 2: TELEPORT TO INITIAL TARGET ===
+    local initialTarget = Vector3.new(30198.056640625, 0.04999887943267822, 23.505233764648438)
+    teleportToPosition(initialTarget)
+
+    -- === STEP 3: WAIT 3 SECONDS, TELEPORT AGAIN ===
+    wait(3)
+    teleportToPosition(initialTarget)
+
+    -- === STEP 4: WAIT 2 SECONDS, JUMP ===
+    wait(2)
+    if humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        -- Hide seated status after jump
+        seatedStatus.Visible = false
+    end
+
+    -- === STEP 5: WAIT 3 SECONDS, GENERATE PLATFORM + TELEPORT UP ===
+    wait(3)
+    local baseTarget = Vector3.new(-29920, 0.5499945282936096, 23.503000259399414)
+    local highTarget = baseTarget + Vector3.new(0, 200, 0)
+
+    createPlatform(highTarget)
+
+    -- === STEP 6: TELEPORT TO HIGH PLATFORM TWICE ===
+    teleportToPosition(highTarget)
+    wait(2)
+    teleportToPosition(highTarget)
+
+    print("Teleportations complete, platform generated, and GUI running.")
 end
 
--- Execute teleportation to driver seat and wait for seated state
+-- Start the seated check
 waitForSeated()
-
--- === STEP 2: TELEPORT TO INITIAL TARGET ===
-local initialTarget = Vector3.new(30198.056640625, 0.04999887943267822, 23.505233764648438)
-teleportToPosition(initialTarget)
-
--- === STEP 3: WAIT 3 SECONDS, TELEPORT AGAIN ===
-wait(3)
-teleportToPosition(initialTarget)
-
--- === STEP 4: WAIT 2 SECONDS, JUMP ===
-wait(2)
-if humanoid then
-    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-end
-
--- === STEP 5: WAIT 3 SECONDS, GENERATE PLATFORM + TELEPORT UP ===
-wait(3)
-local baseTarget = Vector3.new(-29920, 0.5499945282936096, 23.503000259399414)
-local highTarget = baseTarget + Vector3.new(0, 200, 0)
-
-createPlatform(highTarget)
-
--- === STEP 6: TELEPORT TO HIGH PLATFORM TWICE ===
-teleportToPosition(highTarget)
-wait(2)
-teleportToPosition(highTarget)
-
-print("Teleportations complete, platform generated, and GUI running.")
