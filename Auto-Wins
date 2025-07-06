@@ -1,0 +1,112 @@
+-- === PLAYER AND CHARACTER SETUP ===
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+-- === FULLSCREEN GUI CREATION ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "HeistGui"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local background = Instance.new("Frame")
+background.AnchorPoint = Vector2.new(0, 0)
+background.Position = UDim2.new(0, 0, 0, 0)
+background.Size = UDim2.new(1, 0, 1, 0)
+background.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Fully black
+background.BackgroundTransparency = 0 -- Fully opaque
+background.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0.3, 0)
+title.Position = UDim2.new(0, 0, 0.15, 0)
+title.Text = "DEADLY HEIST\nAUTO WINS BY AL-KAIZAR"
+title.TextColor3 = Color3.fromRGB(255, 0, 0)
+title.TextStrokeTransparency = 0
+title.TextScaled = true
+title.Font = Enum.Font.ArialBold
+title.BackgroundTransparency = 1
+title.Parent = screenGui
+
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Size = UDim2.new(1, 0, 0.1, 0)
+timerLabel.Position = UDim2.new(0, 0, 0.6, 0)
+timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+timerLabel.TextStrokeTransparency = 0
+timerLabel.TextScaled = true
+timerLabel.Font = Enum.Font.ArialBold
+timerLabel.BackgroundTransparency = 1
+timerLabel.Parent = screenGui
+
+-- === TIMER LOGIC ===
+local totalTime = 120 -- Reduced to 120 seconds
+spawn(function()
+    while totalTime > 0 do
+        local minutes = math.floor(totalTime / 60)
+        local seconds = totalTime % 60
+        timerLabel.Text = string.format("Time Remaining: %02d:%02d", minutes, seconds)
+        wait(1)
+        totalTime = totalTime - 1
+    end
+    timerLabel.Text = "Finished!"
+end)
+
+-- === TELEPORT FUNCTIONS ===
+local function teleportToPart(part)
+    rootPart.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+end
+
+local function teleportToPosition(position)
+    rootPart.CFrame = CFrame.new(position + Vector3.new(0, 5, 0))
+end
+
+-- === PLATFORM GENERATION ===
+local function createPlatform(centerPosition)
+    local platformFolder = Instance.new("Folder", workspace)
+    platformFolder.Name = "GeneratedPlatform"
+
+    local size = Vector3.new(40, 1, 40)
+    local platform = Instance.new("Part")
+    platform.Size = size
+    platform.Position = centerPosition - Vector3.new(0, size.Y / 2, 0) -- Put under the player
+    platform.Anchored = true
+    platform.Color = Color3.fromRGB(100, 100, 100)
+    platform.Name = "HeistPlatform"
+    platform.Parent = platformFolder
+end
+
+-- === STEP 1: TELEPORT TO DRIVER SEAT TWICE ===
+local driverSeat = workspace:WaitForChild("Vehicle"):WaitForChild("Seats"):WaitForChild("DriverSeat")
+teleportToPart(driverSeat)
+wait(0.5)
+teleportToPart(driverSeat)
+
+-- === STEP 2: TELEPORT TO INITIAL TARGET ===
+local initialTarget = Vector3.new(30198.056640625, 0.04999887943267822, 23.505233764648438)
+teleportToPosition(initialTarget)
+
+-- === STEP 3: WAIT 3 SECONDS, TELEPORT AGAIN ===
+wait(3)
+teleportToPosition(initialTarget)
+
+-- === STEP 4: WAIT 2 SECONDS, JUMP ===
+wait(2)
+if humanoid then
+    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+end
+
+-- === STEP 5: WAIT 3 SECONDS, GENERATE PLATFORM + TELEPORT UP ===
+wait(3)
+local baseTarget = Vector3.new(-29920, 0.5499945282936096, 23.503000259399414)
+local highTarget = baseTarget + Vector3.new(0, 200, 0)
+
+createPlatform(highTarget)
+
+-- === STEP 6: TELEPORT TO HIGH PLATFORM TWICE ===
+teleportToPosition(highTarget)
+wait(2)
+teleportToPosition(highTarget)
+
+print("Teleportations complete, platform generated, and GUI running.")
