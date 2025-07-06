@@ -26,8 +26,9 @@ local function checkGameElements()
     return createParty and allPlacesExist
 end
 
-if checkGameElements() then
-    -- ✅ Elements found, run the first script
+-- Check if the game ID matches
+if game.GameId == 116113866980358 and checkGameElements() then
+    -- ✅ Game ID matches and elements found, run the main script
 
     local humanoid = character:WaitForChild("Humanoid")
     local rootPart = character:WaitForChild("HumanoidRootPart")
@@ -101,6 +102,6 @@ if checkGameElements() then
     end
 
 else
-    -- ❌ Elements missing, fallback to loadstring script
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/OtakuDreamer98/Deadly-Heist-/refs/heads/main/Auto-Wins"))()
+    -- ❌ Game ID doesn't match or elements missing, do nothing
+    warn("Game ID does not match or required elements are missing. Script will not execute.")
 end
