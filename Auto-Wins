@@ -2,7 +2,7 @@
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:FindFirstChildOfClass("Humanoid")
+local humanoid = character:WaitForChild("Humanoid")
 
 -- === FULLSCREEN GUI CREATION ===
 local screenGui = Instance.new("ScreenGui")
@@ -40,8 +40,19 @@ timerLabel.Font = Enum.Font.ArialBold
 timerLabel.BackgroundTransparency = 1
 timerLabel.Parent = screenGui
 
+local lobbyMessage = Instance.new("TextLabel")
+lobbyMessage.Size = UDim2.new(1, 0, 0.1, 0)
+lobbyMessage.Position = UDim2.new(0, 0, 0.7, 0)
+lobbyMessage.Text = "" -- Initially empty
+lobbyMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
+lobbyMessage.TextStrokeTransparency = 0
+lobbyMessage.TextScaled = true
+lobbyMessage.Font = Enum.Font.ArialBold
+lobbyMessage.BackgroundTransparency = 1
+lobbyMessage.Parent = screenGui
+
 -- === TIMER LOGIC ===
-local totalTime = 120 -- Reduced to 120 seconds
+local totalTime = 120 -- 120 seconds
 spawn(function()
     while totalTime > 0 do
         local minutes = math.floor(totalTime / 60)
@@ -51,37 +62,54 @@ spawn(function()
         totalTime = totalTime - 1
     end
     timerLabel.Text = "Finished!"
+    lobbyMessage.Text = "Teleporting you back to the Lobby...\n(Note: This may take a while)"
 end)
 
 -- === TELEPORT FUNCTIONS ===
 local function teleportToPart(part)
-    rootPart.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+    if rootPart and part then
+        rootPart.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+    end
 end
 
 local function teleportToPosition(position)
-    rootPart.CFrame = CFrame.new(position + Vector3.new(0, 5, 0))
+    if rootPart then
+        rootPart.CFrame = CFrame.new(position + Vector3.new(0, 5, 0))
+    end
 end
 
 -- === PLATFORM GENERATION ===
 local function createPlatform(centerPosition)
-    local platformFolder = Instance.new("Folder", workspace)
+    local platformFolder = Instance.new("Folder")
     platformFolder.Name = "GeneratedPlatform"
+    platformFolder.Parent = workspace
 
     local size = Vector3.new(40, 1, 40)
     local platform = Instance.new("Part")
     platform.Size = size
-    platform.Position = centerPosition - Vector3.new(0, size.Y / 2, 0) -- Put under the player
+    platform.Position = centerPosition - Vector3.new(0, size.Y / 2, 0) -- Under player
     platform.Anchored = true
     platform.Color = Color3.fromRGB(100, 100, 100)
     platform.Name = "HeistPlatform"
     platform.Parent = platformFolder
 end
 
--- === STEP 1: TELEPORT TO DRIVER SEAT TWICE ===
+-- === STEP 1: ENSURE PLAYER IS SEATED ===
 local driverSeat = workspace:WaitForChild("Vehicle"):WaitForChild("Seats"):WaitForChild("DriverSeat")
-teleportToPart(driverSeat)
-wait(0.5)
-teleportToPart(driverSeat)
+
+local function waitForSeated()
+    while humanoid and humanoid.Sit ~= true do
+        teleportToPart(driverSeat)
+        wait(0.5) -- Wait between attempts
+        -- Re-check humanoid in case character respawns
+        humanoid = character:WaitForChild("Humanoid", 5)
+        rootPart = character:WaitForChild("HumanoidRootPart", 5)
+    end
+    print("Player is seated in driver seat.")
+end
+
+-- Execute teleportation to driver seat and wait for seated state
+waitForSeated()
 
 -- === STEP 2: TELEPORT TO INITIAL TARGET ===
 local initialTarget = Vector3.new(30198.056640625, 0.04999887943267822, 23.505233764648438)
